@@ -8,11 +8,12 @@ import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { apiUrl, LearnType, LogType, sleep, WordType } from '../helpers';
 import WordCard from './components/WordCard';
-
-type NotificationType = 'success' | 'info' | 'warning' | 'error';
+import { NotificationType } from './helpers';
+import Link from 'next/link';
 
 
 export default function Home() {
+  
   const [params, setParams] = useState<any>({
     wordType: "",
     keyword: "",
@@ -38,7 +39,6 @@ export default function Home() {
   };
 
   const fetchData = async () => {
-    setLoading(true);
     try {
       const skip = (params.page - 1) * params.size;
       const response = await axios.get(
@@ -48,13 +48,10 @@ export default function Home() {
     } catch (err: any) {
       setError(err.message);
       console.log('error fetchData');
-    } finally {
-      setLoading(false);
     }
   };
 
   const fetchHistoryData = async () => {
-    setLoading(true);
     try {
       const response = await axios.get(
         `${apiUrl}/histories?take=1000&skip=0`,
@@ -63,8 +60,6 @@ export default function Home() {
     } catch (err: any) {
       setError(err.message);
       console.log('error fetchHistoryData');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -172,161 +167,173 @@ export default function Home() {
   useEffect(() => {
     fetchData();
     fetchHistoryData();
+    setLoading(false);
   }, [params]);
   
   return (
     <div className="max-w-screen-2xl items-center justify-items-center min-h-screen p-8 pb-20 gap-16 gap-16 font-[family-name:var(--font-geist-sans)] m-home">
-      <Row gutter={24}>
-        <Col span={24}>
-          <Select
-            style={{ width: '200px' }}
-            showSearch
-            onChange={onChangeType}
-            placeholder="Select type"
-            optionFilterProp="label"
-            defaultValue={LearnType.LEARN_LISTEN}
-            options={[
-              {
-                value: LearnType.LEARN_LISTEN,
-                label: 'Học nghe',
-              },
-              {
-                value: LearnType.LEARN_VOCABULARY,
-                label: 'Học từ vựng',
-              },
-            ]}
-          />
-          <Select
-            className="ml-2"
-            style={{ width: '200px' }}
-            showSearch
-            onChange={onChangeWordType}
-            placeholder="Select word"
-            optionFilterProp="label"
-            defaultValue={null}
-            options={[
-              {
-                value: '',
-                label: 'Tất cả từ',
-              },
-              {
-                value: WordType.LEARN,
-                label: 'Từ chưa học',
-              },
-              {
-                value: WordType.LEARNED,
-                label: 'Từ đã học',
-              },
-            ]}
-          />
-          <Switch
-            className="ml-2"
-            onChange={changeIsShowHistory}
-            checkedChildren="Hide history"
-            unCheckedChildren="Show history"
-          />
-          <Input
-            placeholder="Enter for find: word ..."
-            className="ml-2"
-            style={{ width: '200px' }}
-          />
-        </Col>
-      </Row>
-
-      <Flex justify={'flex-end'} align={'center'}>
-        <Button type="default" className="mt-4" onClick={onPlayAll}>
-          Play all
-        </Button>
-        <Button type="primary" className="mt-4 ml-2" onClick={onChangeFind}>
-          Refresh
-        </Button>
-      </Flex>
-
-      <Row gutter={24} className="mt-4">
-        <Col span={24}>
-          <Pagination
-            total={data?.count}
-            showTotal={(total, range) => `${range[0]}-${range[1]} | ${total}`}
-            onChange={onChangePagination}
-            onShowSizeChange={onShowSizeChange}
-            showSizeChanger
-            showQuickJumper
-            pageSize={params.size}
-            current={params.page}
-            pageSizeOptions={['8', '16', '64', '160']}
-          />
-        </Col>
-      </Row>
-
-      <Row gutter={24} className="mt-4">
-        <Col span={24}>
-          <Flex wrap gap="20px">
-            {data?.data?.map((item: any) => (
-              <WordCard
-                key={item.id}
-                item={item}
-                typeLearn={typeLearn}
-                getTitle={getTitle}
-                onChangeInput={onChangeInput}
-                handleSoundOne={handleSoundOne}
-                handleSoundRepeat={handleSoundRepeat}
-              />
-            ))}
-          </Flex>
-        </Col>
-      </Row>
-
-      {isShowHistory === true && (
+      {!loading && (
         <>
-          <Row gutter={24} className="mt-4">
+          <Row gutter={24}>
             <Col span={24}>
-              <Card
-                title="Summary"
-                bordered={false}
-                style={{ width: 300, textAlign: 'center' }}
-              >
-                <Flex justify={'space-between'} align={'center'}>
-                  <span>Tồng từ:</span>
-                  <b>{historyData?.wordTotal}</b>
-                </Flex>
-                <Flex justify={'space-between'} align={'center'}>
-                  <span>Tồng từ đúng:</span>
-                  <b style={{ color: '#1890ff' }}>
-                    {historyData?.learnedCount}
-                  </b>
-                </Flex>
-                <Flex justify={'space-between'} align={'center'}>
-                  <span>Tồng từ sai:</span>
-                  <b style={{ color: '#fa8c16' }}>
-                    {historyData?.wordErrorData?.total}
-                  </b>
-                </Flex>
-                <Flex justify={'space-between'} align={'center'}>
-                  <span>Tổng từ chưa học:</span>
-                  <b>{historyData?.learningCount}</b>
-                </Flex>
-              </Card>
+              <Select
+                style={{ width: '200px' }}
+                showSearch
+                onChange={onChangeType}
+                placeholder="Select type"
+                optionFilterProp="label"
+                defaultValue={LearnType.LEARN_LISTEN}
+                options={[
+                  {
+                    value: LearnType.LEARN_LISTEN,
+                    label: 'Học nghe',
+                  },
+                  {
+                    value: LearnType.LEARN_VOCABULARY,
+                    label: 'Học từ vựng',
+                  },
+                ]}
+              />
+              <Select
+                className="ml-2"
+                style={{ width: '200px' }}
+                showSearch
+                onChange={onChangeWordType}
+                placeholder="Select word"
+                optionFilterProp="label"
+                defaultValue={null}
+                options={[
+                  {
+                    value: '',
+                    label: 'Tất cả từ',
+                  },
+                  {
+                    value: WordType.LEARN,
+                    label: 'Từ chưa học',
+                  },
+                  {
+                    value: WordType.LEARNED,
+                    label: 'Từ đã học',
+                  },
+                ]}
+              />
+              <Switch
+                className="ml-2"
+                onChange={changeIsShowHistory}
+                checkedChildren="Hide history"
+                unCheckedChildren="Show history"
+              />
+              <Input
+                placeholder="Enter for find: word ..."
+                className="ml-2"
+                style={{ width: '200px' }}
+              />
             </Col>
           </Row>
+
+          <Flex justify={'flex-end'} align={'center'}>
+            <Button type="default" className="mt-4" onClick={onPlayAll}>
+              Play all
+            </Button>
+            <Button type="primary" className="mt-4 ml-2" onClick={onChangeFind}>
+              Refresh
+            </Button>
+            <Link href="/lesson/0">
+              <Button className="mt-4 ml-2" color="primary" variant="dashed">
+                Lesson
+              </Button>
+            </Link>
+          </Flex>
+
           <Row gutter={24} className="mt-4">
-            <Flex wrap gap="20px">
-              {historyData?.wordErrorData?.data?.map((item: any) => (
-                <WordCard
-                  key={item.id}
-                  item={item}
-                  typeLearn={typeLearn}
-                  getTitle={getTitle}
-                  onChangeInput={onChangeInput}
-                  handleSoundOne={handleSoundOne}
-                  handleSoundRepeat={handleSoundRepeat}
-                />
-              ))}
-            </Flex>
+            <Col span={24}>
+              <Pagination
+                total={data?.count}
+                showTotal={(total, range) =>
+                  `${range[0]}-${range[1]} | ${total}`
+                }
+                onChange={onChangePagination}
+                onShowSizeChange={onShowSizeChange}
+                showSizeChanger
+                showQuickJumper
+                pageSize={params.size}
+                current={params.page}
+                pageSizeOptions={['8', '16', '64', '160']}
+              />
+            </Col>
           </Row>
+
+          <Row gutter={24} className="mt-4">
+            <Col span={24}>
+              <Flex wrap gap="20px">
+                {data?.data?.map((item: any) => (
+                  <WordCard
+                    key={item.id}
+                    item={item}
+                    typeLearn={typeLearn}
+                    getTitle={getTitle}
+                    onChangeInput={onChangeInput}
+                    handleSoundOne={handleSoundOne}
+                    handleSoundRepeat={handleSoundRepeat}
+                  />
+                ))}
+              </Flex>
+            </Col>
+          </Row>
+
+          {isShowHistory === true && (
+            <>
+              <Row gutter={24} className="mt-4">
+                <Col span={24}>
+                  <Card
+                    title="Summary"
+                    bordered={false}
+                    style={{ width: 300, textAlign: 'center' }}
+                  >
+                    <Flex justify={'space-between'} align={'center'}>
+                      <span>Tồng từ:</span>
+                      <b>{historyData?.wordTotal}</b>
+                    </Flex>
+                    <Flex justify={'space-between'} align={'center'}>
+                      <span>Tồng từ đúng:</span>
+                      <b style={{ color: '#1890ff' }}>
+                        {historyData?.learnedCount}
+                      </b>
+                    </Flex>
+                    <Flex justify={'space-between'} align={'center'}>
+                      <span>Tồng từ sai:</span>
+                      <b style={{ color: '#fa8c16' }}>
+                        {historyData?.wordErrorData?.total}
+                      </b>
+                    </Flex>
+                    <Flex justify={'space-between'} align={'center'}>
+                      <span>Tổng từ chưa học:</span>
+                      <b>{historyData?.learningCount}</b>
+                    </Flex>
+                  </Card>
+                </Col>
+              </Row>
+              <Row gutter={24} className="mt-4">
+                <Flex wrap gap="20px">
+                  {historyData?.wordErrorData?.data?.map((item: any) => (
+                    <WordCard
+                      key={item.id}
+                      item={item}
+                      typeLearn={typeLearn}
+                      getTitle={getTitle}
+                      onChangeInput={onChangeInput}
+                      handleSoundOne={handleSoundOne}
+                      handleSoundRepeat={handleSoundRepeat}
+                    />
+                  ))}
+                </Flex>
+              </Row>
+            </>
+          )}
         </>
       )}
 
       {contextHolder}
     </div>
-  );
+  )
 }

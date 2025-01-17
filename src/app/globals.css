@@ -27,4 +27,34 @@ body {
 .m-home {
   margin: 0px auto;
 }
+.ant-form-item {
+  margin-bottom: 8px!important;
+}
+.ant-input {
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  
+  border-radius: 0px;
+}
+
+.ant-input:focus {
+  box-shadow: unset !important;
+}
+.ant-input-outlined {
+  border-bottom: 1px dashed #d9d9d9;
+}
+.ant-btn-block {
+  border: none !important;
+}
+.ant-typography {
+  font-size: 24px !important;
+  line-height: unset !important;
+}
+.add-btn {
+  color:  #40a9ff !important;
+  &:hover, &:focus, &:active {
+    color:  #40a9ff !important;
+  }
+}
 
