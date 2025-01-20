@@ -50,10 +50,12 @@ body {
 }
 .ant-btn-block {
   border: none !important;
+  color:  #40a9ff !important;
 }
 .ant-typography {
   font-size: 24px !important;
   line-height: unset !important;
+  margin-bottom: unset !important;
 }
 .add-btn {
   color:  #40a9ff !important;
@@ -62,3 +64,10 @@ body {
   }
 }
 
+.m-history-text {
+  padding-bottom: 4px;
+}
+
+.m-text-warning {
+  color:#faad14 !important;
+}

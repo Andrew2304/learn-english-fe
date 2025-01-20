@@ -184,6 +184,8 @@ export default function Page() {
       lessons = lessons?.map((item: any) => {
         let questionCount = 0;
         let answerCount = 0;
+        const typeQuestionCount = QuestionTypes.length;
+        const questionTotal = typeQuestionCount * item.lessonWords.length;
         
         item.lessonWords?.map((word: any) => {
           word?.lessonQuestions?.map((question: any) => {
@@ -196,8 +198,8 @@ export default function Page() {
         })
         return {
           label: `${item.title} ${dayjs(item.createdAt).format('HH:MM')}`,
-          children: `${item.id} - ${item.topic}(${item.lessonWords.length} | ${questionCount} | ${answerCount})`,
-          color: item.lessonWords.length < 5 ? 'red' : 'blue',
+          children: `${item.id} - ${item.topic}(${item.lessonWords.length} | ${questionCount}/${questionTotal} | ${answerCount}/${questionTotal})`,
+          isComplete: questionCount < questionTotal ? false : true,
           ...item,
         }
       })
@@ -264,6 +266,8 @@ export default function Page() {
     setIsLoading(false);
     }, [id]);
 
+  if (id !== '0' && !lesson) return null;
+
   return (
     <div className="max-w-screen-2xl items-center justify-items-center min-h-screen p-8 pb-20 gap-16 gap-16 font-[family-name:var(--font-geist-sans)] m-home">
       {!isLoading && (
@@ -309,7 +313,7 @@ export default function Page() {
                   words,
                 }}
               >
-                <Form.Item name="topic" style={{ width: 240 }}>
+                <Form.Item name="topic" style={{ width: 200 }}>
                   <Input placeholder="Topic" />
                 </Form.Item>
 
@@ -325,28 +329,28 @@ export default function Page() {
                           <Form.Item
                             {...restField}
                             name={[name, 'description']}
-                            style={{ width: 240 }}
+                            style={{ width: 200 }}
                           >
                             <Input placeholder="Word" />
                           </Form.Item>
                           <Form.Item
                             {...restField}
                             name={[name, 'type']}
-                            style={{ width: 240 }}
+                            style={{ width: 200 }}
                           >
                             <Input placeholder="Type" />
                           </Form.Item>
                           <Form.Item
                             {...restField}
                             name={[name, 'pronunciation']}
-                            style={{ width: 240 }}
+                            style={{ width: 200 }}
                           >
                             <Input placeholder="Pronunciation" />
                           </Form.Item>
                           <Form.Item
                             {...restField}
                             name={[name, 'translation']}
-                            style={{ width: 240 }}
+                            style={{ width: 200 }}
                           >
                             <Input placeholder="Translation" />
                           </Form.Item>
@@ -425,14 +429,14 @@ export default function Page() {
                             <Form.Item
                               {...restField}
                               name={[name, 'question']}
-                              style={{ width: 410 }}
+                              style={{ width: 335 }}
                             >
                               <Input placeholder="Question" />
                             </Form.Item>
                             <Form.Item
                               {...restField}
                               name={[name, 'answer']}
-                              style={{ width: 410 }}
+                              style={{ width: 335 }}
                             >
                               <Input placeholder="Answer" />
                             </Form.Item>
@@ -478,8 +482,14 @@ export default function Page() {
               style={{ width: '100%' }}
             >
               {lessons?.map((item: any) => (
-                <p key={item.id} onClick={() => onToLesson(item.id)}>
-                  <a>{`${item.label} - ${item.children}`}</a>
+                <p
+                  key={item.id}
+                  onClick={() => onToLesson(item.id)}
+                  className="m-history-text"
+                >
+                  <a
+                    className={item.isComplete ? '' : 'm-text-warning'}
+                  >{`${item.label} - ${item.children}`}</a>
                 </p>
               ))}
             </Card>
