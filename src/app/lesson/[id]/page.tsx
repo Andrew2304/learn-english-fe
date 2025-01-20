@@ -7,10 +7,12 @@ import { MinusCircleOutlined, PlusCircleOutlined, PlusOutlined } from '@ant-desi
 import { Button, Card, Col, Flex, Form, Input, notification, Row, Space, Tag, Timeline, Tooltip, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 import { apiUrl } from '../../../helpers'
-import axios from 'axios'
+// import axios from 'axios'
 import { useParams, useRouter } from 'next/navigation';
 import { NotificationType, QuestionTypes } from '../../helpers'
 import dayjs from 'dayjs'
+import TextArea from 'antd/es/input/TextArea'
+import { restTransport } from '../../helpers/api'
 
 export default function Page() {
   const [api, contextHolder] = notification.useNotification();
@@ -24,12 +26,22 @@ export default function Page() {
   const [formUpdate3] = Form.useForm();
   const [formUpdate4] = Form.useForm();
   const [formUpdate5] = Form.useForm();
+  const [formUpdate6] = Form.useForm();
+  const [formUpdate7] = Form.useForm();
+  const [formUpdate8] = Form.useForm();
+  const [formUpdate9] = Form.useForm();
+  const [formUpdate10] = Form.useForm();
   const functions: any = {
     formUpdate1: () => formUpdate1,
     formUpdate2: () => formUpdate2,
     formUpdate3: () => formUpdate3,
     formUpdate4: () => formUpdate4,
     formUpdate5: () => formUpdate5,
+    formUpdate6: () => formUpdate6,
+    formUpdate7: () => formUpdate7,
+    formUpdate8: () => formUpdate8,
+    formUpdate9: () => formUpdate9,
+    formUpdate10: () => formUpdate10,
   };
 
   const [isLoading, setIsLoading] = useState<any>(true);
@@ -44,6 +56,7 @@ export default function Page() {
     { title: '' },
   ]);
 
+  const axios = restTransport();
 
   const openNotificationWithIcon = (type: NotificationType, message?: string) => {
     api[type]({
@@ -58,7 +71,7 @@ export default function Page() {
       const response =  await axios.get(
         `${apiUrl}/lesson/${id}`,
       );
-      return response.data 
+      return response?.data 
     } catch (err: any) {
       console.log('error fetchData');
       return null;
@@ -69,9 +82,9 @@ export default function Page() {
       const response =  await axios.get(
         `${apiUrl}/lesson/topics`,
       );
-      return response.data 
+      return response?.data 
     } catch (err: any) {
-      console.log('error fetchTopics');
+      console.log('error fetchTopics', err)
       return null;
     }
   };
@@ -80,7 +93,7 @@ export default function Page() {
       const response =  await axios.get(
         `${apiUrl}/lesson`,
       );
-      return response.data 
+      return response?.data 
     } catch (err: any) {
       console.log('error fetchLessons')
       return null;
@@ -91,7 +104,7 @@ export default function Page() {
     try {
       const response = await axios.post(`${apiUrl}/lesson`, data);
       openNotificationWithIcon('success', "Create success");
-      return response.data;
+      return response?.data;
     } catch (err: any) {
       console.log('error createLesson');
       return null;
@@ -101,7 +114,7 @@ export default function Page() {
     try {
       const response = await axios.patch(`${apiUrl}/lesson/${lesson.id}`, data);
       openNotificationWithIcon('success', "Update success");
-      return response.data;
+      return response?.data;
     } catch (err: any) {
       console.log('error updateLesson');
       return null;
@@ -111,7 +124,7 @@ export default function Page() {
     try {
       const response = await axios.patch(`${apiUrl}/lesson/${lesson.id}/questions`, data);
       openNotificationWithIcon('success', "Update success");
-      return response.data;
+      return response?.data;
     } catch (err: any) {
       console.log('error createLesson');
       return null;
@@ -122,8 +135,9 @@ export default function Page() {
     console.log("values", values);
     const words = values.words.filter((item: any) => !!item.description);
     const data = {
-      topic: values?.topic ?? "common",
+      topic: values?.topic ?? 'common',
       words,
+      description: values.description,
     }
     
     if (id === '0') {
@@ -136,16 +150,17 @@ export default function Page() {
         setWords(words);
         let lesson = await fetchData(id);
         lesson = {
-          ...lesson, lessonWords: lesson?.lessonWords.map((item: any) => ({
+          ...lesson,
+          lessonWords: lesson?.lessonWords.map((item: any) => ({
             ...item,
-            contents: [
-              { lessonWordId: item.id, type: 'What' },
-              { lessonWordId: item.id, type: 'When' },
-              { lessonWordId: item.id, type: 'Where' },
-              { lessonWordId: item.id, type: 'Who' },
-              { lessonWordId: item.id, type: 'Why' },
-            ]
-        }))}
+            contents: QuestionTypes.map((type: any) => {
+              return {
+                type,
+                lessonWordId: item?.id,
+              }
+            }),
+          })),
+        }
         setLesson(lesson);
       }
   }
@@ -154,40 +169,47 @@ export default function Page() {
     console.log(values);
     const contents = values.contents.filter((item: any) => item.question);
     console.log('contents', contents)
-    await updateQuestions({contents})
+    await updateQuestions({contents, typeCount: QuestionTypes.length})
   }
   const onGetTopics = async () => {
     const topics = await fetchTopics();
-    setTopics(topics);
+    if (topics) {
+      setTopics(topics);
+    }
   }
   const onGetLessons = async () => {
     let lessons = await fetchLessons();
-    lessons = lessons.map((item: any) => {
-      let questionCount = 0;
-      let answerCount = 0;
-      
-      item.lessonWords?.map((word: any) => {
-        word?.lessonQuestions?.map((question: any) => {
-          questionCount++;
 
-          if (question.lessonAnswer) {
-            answerCount++;
-          }
+    if (lessons) {
+      lessons = lessons?.map((item: any) => {
+        let questionCount = 0;
+        let answerCount = 0;
+        
+        item.lessonWords?.map((word: any) => {
+          word?.lessonQuestions?.map((question: any) => {
+            questionCount++;
+  
+            if (question.lessonAnswer?.answer) {
+              answerCount++;
+            }
+          })
         })
+        return {
+          label: `${item.title} ${dayjs(item.createdAt).format('HH:MM')}`,
+          children: `${item.id} - ${item.topic}(${item.lessonWords.length} | ${questionCount} | ${answerCount})`,
+          color: item.lessonWords.length < 5 ? 'red' : 'blue',
+          ...item,
+        }
       })
-      return {
-        label: `${item.title} ${dayjs(item.createdAt).format('HH:MM')}`,
-        children: `${item.id} - ${item.topic}(${item.lessonWords.length} | ${questionCount} | ${answerCount})`,
-        color: item.lessonWords.length < 5 ? 'red' : 'blue',
-        ...item,
-      }
-    })
-    console.log(lessons);
-    setLessons(lessons);
+      console.log(lessons);
+      setLessons(lessons);
+    }
   }
 
   const onGetData = async (id: any) => {
+    setIsLoading(true);
     let lesson = await fetchData(id);
+    setIsLoading(false);
 
     if (!lesson) return;
     
@@ -217,16 +239,19 @@ export default function Page() {
         }),
       })),
     }
-    setLesson(lesson);
 
-    console.log(lesson)
+    setTimeout(() => {
+      setLesson(lesson);
+      formCreate.setFieldsValue({
+        topic: lesson.topic,
+        description: lesson.description,
+        words,
+      })
+    }, 200)
+  }
 
-    formCreate.setFieldsValue({
-      topic: lesson.topic,
-      words,
-    });
-
-    
+  const onToLesson = (id: number) => {
+    router.push(`/lesson/${id}`)
   }
 
   useEffect(() => {
@@ -241,8 +266,7 @@ export default function Page() {
 
   return (
     <div className="max-w-screen-2xl items-center justify-items-center min-h-screen p-8 pb-20 gap-16 gap-16 font-[family-name:var(--font-geist-sans)] m-home">
-      
-      {!isLoading &&
+      {!isLoading && (
         <Row gutter={24} style={{ width: '100%' }}>
           <Col span={18}>
             <Card
@@ -252,21 +276,24 @@ export default function Page() {
                     {id === '0' ? 'Create Lesson' : `Lesson ${lesson?.title}`}
                   </Typography.Title>
                   <div>
-                  {id !== '0' && (
+                    {id !== '0' && (
+                      <Button
+                        className="ml-2 add-btn"
+                        onClick={() => router.push('/lesson/0')}
+                        type="text"
+                        size="large"
+                      >
+                        + New
+                      </Button>
+                    )}
                     <Button
                       className="ml-2 add-btn"
-                      onClick={() => router.push('/lesson/0')}
+                      onClick={() => router.push('/')}
                       type="text"
                       size="large"
-                    >+ New</Button>
-                  )}
-                  <Button
-                    className="ml-2 add-btn"
-                    onClick={() => router.push('/')}
-                    type="text"
-                    size="large"
-                  >Home</Button>
-
+                    >
+                      Home
+                    </Button>
                   </div>
                 </Row>
               }
@@ -342,6 +369,14 @@ export default function Page() {
                     </>
                   )}
                 </Form.List>
+
+                <Form.Item name="description">
+                  <TextArea
+                    placeholder="Description"
+                    autoSize={{ minRows: 4, maxRows: 6 }}
+                  />
+                </Form.Item>
+
                 <Button color="primary" variant="dashed" htmlType="submit">
                   {id === '0' ? 'Create' : 'Update'}
                 </Button>
@@ -442,11 +477,15 @@ export default function Page() {
               bordered={false}
               style={{ width: '100%' }}
             >
-              <Timeline mode={'left'} items={lessons} />
+              {lessons?.map((item: any) => (
+                <p key={item.id} onClick={() => onToLesson(item.id)}>
+                  <a>{`${item.label} - ${item.children}`}</a>
+                </p>
+              ))}
             </Card>
           </Col>
         </Row>
-      }
+      )}
 
       {contextHolder}
     </div>

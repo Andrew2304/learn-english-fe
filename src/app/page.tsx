@@ -4,15 +4,16 @@
 'use client';
 
 import { Button, Card, Col, Flex, Input, notification, Pagination, PaginationProps, Row, Select, Switch } from 'antd';
-import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { apiUrl, LearnType, LogType, sleep, WordType } from '../helpers';
 import WordCard from './components/WordCard';
 import { NotificationType } from './helpers';
 import Link from 'next/link';
+import { restTransport } from './helpers/api';
 
 
 export default function Home() {
+  const axios = restTransport();
   
   const [params, setParams] = useState<any>({
     wordType: "",
@@ -44,7 +45,7 @@ export default function Home() {
       const response = await axios.get(
         `${apiUrl}/words?take=${params.size}&skip=${skip}&wordType=${params.wordType}&keyword=${params.keyword}`,
       );
-      setData(response.data);
+      setData(response?.data);
     } catch (err: any) {
       setError(err.message);
       console.log('error fetchData');
@@ -56,7 +57,7 @@ export default function Home() {
       const response = await axios.get(
         `${apiUrl}/histories?take=1000&skip=0`,
       );
-      setHistoryData(response.data);
+      setHistoryData(response?.data);
     } catch (err: any) {
       setError(err.message);
       console.log('error fetchHistoryData');
