@@ -3,11 +3,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { MinusCircleOutlined, PlusCircleOutlined, PlusOutlined } from '@ant-design/icons'
+import { MinusCircleOutlined, NodeIndexOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusCircleOutlined, PlusOutlined, SoundOutlined } from '@ant-design/icons'
 import { Button, Card, Col, Flex, Form, Input, notification, Row, Space, Tag, Timeline, Tooltip, Typography } from 'antd'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { apiUrl } from '../../../helpers'
-// import axios from 'axios'
 import { useParams, useRouter } from 'next/navigation';
 import { NotificationType, QuestionTypes } from '../../helpers'
 import dayjs from 'dayjs'
@@ -15,6 +14,14 @@ import TextArea from 'antd/es/input/TextArea'
 import { restTransport } from '../../helpers/api'
 
 export default function Page() {
+  const [isRecording, setIsRecording] = useState(false)
+  const [isWordRecording, setIsWordRecording] = useState(false)
+  const [indexRecording, setIndexRecording] = useState<any>(null)
+  const [indexWordRecording, setIndexWordRecording] = useState<any>(null)
+  const [pronunciationLinks, setPronunciationLinks] = useState<any>([])
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunks = useRef<Blob[]>([])
+  
   const [api, contextHolder] = notification.useNotification();
 
   let { id } = useParams();
@@ -132,11 +139,14 @@ export default function Page() {
   };
 
   const onCreateOrUpdateLesson: any = async (values: any) => {
-    console.log("values", values);
-    const words = values.words.filter((item: any) => !!item.description);
+    console.log('values', values)
+    const dataWords = values.words.filter((item: any) => !!item.description);
     const data = {
       topic: values?.topic ?? 'common',
-      words,
+      words: dataWords.map((item: any, index: any) => ({
+        ...item,
+        pronunciationLink: words[index]?.pronunciationLink?? '',
+      })),
       description: values.description,
     }
     
@@ -147,28 +157,25 @@ export default function Page() {
     }
 
     if (id) {
-        setWords(words);
-        let lesson = await fetchData(id);
-        lesson = {
-          ...lesson,
-          lessonWords: lesson?.lessonWords.map((item: any) => ({
-            ...item,
-            contents: QuestionTypes.map((type: any) => {
-              return {
-                type,
-                lessonWordId: item?.id,
-              }
-            }),
-          })),
-        }
-        setLesson(lesson);
+        onGetData(id)
       }
   }
 
   const onUpdateQuestions = async (values: any) => {
-    console.log(values);
-    const contents = values.contents.filter((item: any) => item.question);
-    console.log('contents', contents)
+    let contents = values.contents.filter((item: any) => item.question);
+    contents = contents.map((item: any, index: number) => {
+      const itemLink = pronunciationLinks.find(
+        (item1: any) =>
+          item.lessonWordId === item1.wordId && item1.index === index,
+      )
+      console.log(itemLink)
+      return {
+      ...item,
+      pronunciationLink: itemLink?.pronunciationLink,
+    }
+    })
+
+    console.log("contents", contents);
     await updateQuestions({contents, typeCount: QuestionTypes.length})
   }
   const onGetTopics = async () => {
@@ -209,20 +216,37 @@ export default function Page() {
   }
 
   const onGetData = async (id: any) => {
-    setIsLoading(true);
     let lesson = await fetchData(id);
-    setIsLoading(false);
 
     if (!lesson) return;
+
+    lesson?.lessonWords.sort((a: any, b: any) => {
+      return a.id - b.id;
+    });
     
     console.log('lesson', lesson)
     const words = lesson?.lessonWords?.map((item: any) => ({
+      id: item.id,
       description: item.description,
       type: item.type,
       pronunciation: item.pronunciation,
+      pronunciationLink: item.pronunciationLink,
       translation: item.translation,
     }))
     setWords(words);
+
+    const questionLinks: any[] = [];
+      lesson?.lessonWords?.map((item: any) => {
+      item?.lessonQuestions?.map((item1: any, index: number) => {
+        questionLinks.push({
+          wordId: item.id,
+          index,
+          pronunciationLink: item1.pronunciationLink,
+        })  
+      })
+    })
+
+    setPronunciationLinks(questionLinks)
 
     lesson = {
       ...lesson,
@@ -254,6 +278,97 @@ export default function Page() {
 
   const onToLesson = (id: number) => {
     router.push(`/lesson/${id}`)
+  }
+
+  const startRecording = async (type: string, index: number, wordId?: number) => {
+    
+    setIndexRecording(index)
+    if (type === 'question') setIndexWordRecording(wordId)
+    
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    const mediaRecorder = new MediaRecorder(stream)
+
+    mediaRecorder.ondataavailable = (event: BlobEvent) => {
+      audioChunks.current.push(event.data)
+    }
+
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' })
+      const formData = new FormData()
+
+      const wordTitle =
+        words.find((item: any) => item.id === wordId)?.description ||
+        words[index]?.description
+      const title =
+        type === 'words' ? words[index]?.description : `${wordTitle}-${QuestionTypes[index].toLowerCase()}`;
+      formData.append('file', audioBlob, 'audio.webm')
+      formData.append('title', title)
+
+      const response = await axios.post(`${apiUrl}/lesson/upload-audio`, formData)
+
+      if (type === 'words') {
+        words[index].pronunciationLink = response?.data?.mp3Path;
+        setWords(words);
+        console.log(words)
+      } else {
+        const mp3Links = pronunciationLinks.filter((item: any) => item.wordId!== wordId || item.index!== index);
+        mp3Links.push({
+          wordId,
+          index,
+          pronunciationLink: response?.data?.mp3Path,
+        })
+        setPronunciationLinks(mp3Links);
+        console.log(mp3Links)
+      }
+      openNotificationWithIcon('success', "Recording success")
+
+      // const audioURL = URL.createObjectURL(audioBlob)
+      // setAudioURL(audioURL)
+      audioChunks.current = []
+    }
+
+    mediaRecorder.start()
+    mediaRecorderRef.current = mediaRecorder
+    
+    if (type === 'question') setIsWordRecording(true)
+    else setIsRecording(true)
+  }
+
+  const stopRecording = (type: string, index: number) => {
+    mediaRecorderRef.current?.stop()
+    setIsRecording(false)
+    setIsWordRecording(false)
+    setIndexRecording(null)
+    setIndexWordRecording(null)
+  }
+
+  const playSound = (type: string, index: number, wordId?: number) => {
+    let item: any = [];
+    if (type === "question") {
+      item = pronunciationLinks.find((item: any) => item.wordId === wordId && item.index === index)
+    } else {
+      item = words[index];
+    }
+
+    if (item?.pronunciationLink) {
+      const audio = new Audio(`http://localhost:5005/files/${item?.pronunciationLink}`);
+      audio.play();
+    } else {
+      openNotificationWithIcon('warning', "Not found audio")
+    }
+  }
+
+  const onValuesChange = () => {
+    const values = formCreate.getFieldsValue();
+    const words = values?.words?.map((item: any) => ({
+      id: item.id,
+      description: item.description,
+      type: item.type,
+      pronunciation: item.pronunciation,
+      pronunciationLink: item.pronunciationLink,
+      translation: item.translation,
+    }))
+    setWords(words);
   }
 
   useEffect(() => {
@@ -312,6 +427,7 @@ export default function Page() {
                 initialValues={{
                   words,
                 }}
+                onValuesChange={onValuesChange}
               >
                 <Form.Item name="topic" style={{ width: 200 }}>
                   <Input placeholder="Topic" />
@@ -326,6 +442,9 @@ export default function Page() {
                           style={{ display: 'flex' }}
                           align="baseline"
                         >
+                          <Form.Item {...restField} name={[name, 'id']} hidden>
+                            <Input />
+                          </Form.Item>
                           <Form.Item
                             {...restField}
                             name={[name, 'description']}
@@ -358,6 +477,28 @@ export default function Page() {
                             onClick={() => remove(name)}
                             style={{ color: '#ff4d4f' }}
                           />
+                          <Form.Item {...restField}
+                            className='ml-16'
+                          >
+                            {isRecording && indexRecording === key && (
+                              <Button
+                                onClick={() => stopRecording('words', key)}
+                                icon={<PauseCircleOutlined />}
+                                danger
+                              />
+                            )}
+                            {(!isRecording || indexRecording !== key) && (
+                              <Button
+                                onClick={() => startRecording('words', key)}
+                                icon={<PlayCircleOutlined />}
+                              />
+                            )}
+                              <Button
+                              className="ml-2"
+                              icon={<SoundOutlined />}
+                              onClick={() => playSound("words", key)}
+                            />
+                          </Form.Item>
                         </Space>
                       ))}
                       <Form.Item>
@@ -414,10 +555,17 @@ export default function Page() {
                           >
                             <Form.Item
                               {...restField}
-                              name={[name, 'lessonWordId']}
-                              style={{ width: 50 }}
+                              name={[name, 'id']}
+                              hidden
                             >
-                              <Input disabled />
+                              <Input />
+                            </Form.Item>
+                            <Form.Item
+                              {...restField}
+                              name={[name, 'lessonWordId']}
+                              hidden
+                            >
+                              <Input />
                             </Form.Item>
                             <Form.Item
                               {...restField}
@@ -444,6 +592,34 @@ export default function Page() {
                               onClick={() => remove(name)}
                               style={{ color: '#ff4d4f' }}
                             />
+                            <Form.Item {...restField} className='ml-16'>
+                              {isWordRecording &&
+                                indexRecording === key &&
+                                indexWordRecording === item.id && (
+                                  <Button
+                                    onClick={() =>
+                                      stopRecording('question', key)
+                                    }
+                                    icon={<PauseCircleOutlined />}
+                                    danger
+                                  />
+                                )}
+                              {(!isWordRecording ||
+                                indexRecording !== key ||
+                                indexWordRecording !== item.id) && (
+                                <Button
+                                  onClick={() =>
+                                    startRecording('question', key, item.id)
+                                  }
+                                  icon={<PlayCircleOutlined />}
+                                />
+                              )}
+                              <Button
+                                className="ml-2"
+                                icon={<SoundOutlined />}
+                                onClick={() => playSound('question', key, item.id)}
+                              />
+                            </Form.Item>
                           </Space>
                         ))}
                         <Form.Item>

@@ -5,7 +5,6 @@ export const setLocalStorage = (name: string, data: any) => {
 export const getLocalStorage = (name: string) => {
   const data = localStorage.getItem(name)
 
-  console.log("data", data);
   if (data != "undefined" && data) {
     return JSON.parse(data)
   } else {
