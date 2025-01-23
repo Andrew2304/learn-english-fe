@@ -351,7 +351,7 @@ export default function Page() {
     }
 
     if (item?.pronunciationLink) {
-      const audio = new Audio(`http://localhost:5005/files/${item?.pronunciationLink}`);
+      const audio = new Audio(`${apiUrl}/files/${item?.pronunciationLink}`);
       audio.play();
     } else {
       openNotificationWithIcon('warning', "Not found audio")
