@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { MinusCircleOutlined, NodeIndexOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusCircleOutlined, PlusOutlined, SoundOutlined } from '@ant-design/icons'
+import { MinusCircleOutlined, NodeIndexOutlined, PauseCircleOutlined, PlayCircleOutlined, PlaySquareOutlined, PlusCircleOutlined, PlusOutlined, SoundOutlined } from '@ant-design/icons'
 import { Button, Card, Col, Flex, Form, Input, notification, Row, Space, Tag, Timeline, Tooltip, Typography } from 'antd'
 import { useEffect, useRef, useState } from 'react'
 import { apiUrl } from '../../../helpers'
@@ -64,6 +64,7 @@ export default function Page() {
   ]);
 
   const axios = restTransport();
+  let audio: any = null;
 
   const openNotificationWithIcon = (type: NotificationType, message?: string) => {
     api[type]({
@@ -134,6 +135,15 @@ export default function Page() {
       return response?.data;
     } catch (err: any) {
       console.log('error createLesson');
+      return null;
+    }
+  };
+  const getSoundSample = async (text: string) => {
+    try {
+      const response = await axios.post(`${apiUrl}/lesson/sample-audio`, {text});
+      return response?.data;
+    } catch (err: any) {
+      console.log('error getSoundSample');
       return null;
     }
   };
@@ -241,6 +251,8 @@ export default function Page() {
         questionLinks.push({
           wordId: item.id,
           index,
+          questionText: item1?.question,
+          answerText: item1?.lessonAnswer?.answer,
           pronunciationLink: item1.pronunciationLink,
         })  
       })
@@ -342,6 +354,17 @@ export default function Page() {
     setIndexWordRecording(null)
   }
 
+
+  const onPlaySound = (fileName?: string) => {
+    if (fileName) {
+      audio?.pause()
+      audio = new Audio(`${apiUrl}/files/${fileName}`)
+      audio.play()
+    } else {
+      openNotificationWithIcon('warning', 'Not found audio')
+    }
+  }
+
   const playSound = (type: string, index: number, wordId?: number) => {
     let item: any = [];
     if (type === "question") {
@@ -350,12 +373,27 @@ export default function Page() {
       item = words[index];
     }
 
-    if (item?.pronunciationLink) {
-      const audio = new Audio(`${apiUrl}/files/${item?.pronunciationLink}`);
-      audio.play();
+    console.log('item', item)
+
+    onPlaySound(item?.pronunciationLink);
+  }
+
+  const playSoundSample = async (type: string, index: number, wordId?: number) => {
+    let item: any = [];
+    if (type === "question") {
+      item = pronunciationLinks.find((item: any) => item.wordId === wordId && item.index === index)
     } else {
-      openNotificationWithIcon('warning', "Not found audio")
+      item = words[index];
     }
+
+    if (!item) return;
+
+    console.log('item', item)
+
+    const text = (type === "words") ? item?.description : `${item?.questionText}, ${item?.answerText}`;
+    const sampleAudioName = await getSoundSample(text);
+
+    onPlaySound(sampleAudioName);
   }
 
   const onValuesChange = () => {
@@ -429,7 +467,7 @@ export default function Page() {
                 }}
                 onValuesChange={onValuesChange}
               >
-                <Form.Item name="topic" style={{ width: 200 }}>
+                <Form.Item name="topic" style={{ width: 190 }}>
                   <Input placeholder="Topic" />
                 </Form.Item>
 
@@ -448,28 +486,28 @@ export default function Page() {
                           <Form.Item
                             {...restField}
                             name={[name, 'description']}
-                            style={{ width: 200 }}
+                            style={{ width: 190 }}
                           >
                             <Input placeholder="Word" />
                           </Form.Item>
                           <Form.Item
                             {...restField}
                             name={[name, 'type']}
-                            style={{ width: 200 }}
+                            style={{ width: 190 }}
                           >
                             <Input placeholder="Type" />
                           </Form.Item>
                           <Form.Item
                             {...restField}
                             name={[name, 'pronunciation']}
-                            style={{ width: 200 }}
+                            style={{ width: 190 }}
                           >
                             <Input placeholder="Pronunciation" />
                           </Form.Item>
                           <Form.Item
                             {...restField}
                             name={[name, 'translation']}
-                            style={{ width: 200 }}
+                            style={{ width: 190 }}
                           >
                             <Input placeholder="Translation" />
                           </Form.Item>
@@ -477,11 +515,15 @@ export default function Page() {
                             onClick={() => remove(name)}
                             style={{ color: '#ff4d4f' }}
                           />
-                          <Form.Item {...restField}
-                            className='ml-16'
-                          >
+                          <Form.Item {...restField} className="ml-16">
+                            <Button
+                              onClick={() => playSoundSample('words', key)}
+                              icon={<PlaySquareOutlined />}
+                            />
+
                             {isRecording && indexRecording === key && (
                               <Button
+                                className="ml-2"
                                 onClick={() => stopRecording('words', key)}
                                 icon={<PauseCircleOutlined />}
                                 danger
@@ -489,14 +531,15 @@ export default function Page() {
                             )}
                             {(!isRecording || indexRecording !== key) && (
                               <Button
+                                className="ml-2"
                                 onClick={() => startRecording('words', key)}
                                 icon={<PlayCircleOutlined />}
                               />
                             )}
-                              <Button
+                            <Button
                               className="ml-2"
                               icon={<SoundOutlined />}
-                              onClick={() => playSound("words", key)}
+                              onClick={() => playSound('words', key)}
                             />
                           </Form.Item>
                         </Space>
@@ -592,11 +635,18 @@ export default function Page() {
                               onClick={() => remove(name)}
                               style={{ color: '#ff4d4f' }}
                             />
-                            <Form.Item {...restField} className='ml-16'>
+                            <Form.Item {...restField} className="ml-16">
+                              <Button
+                                onClick={() =>
+                                  playSoundSample('question', key, item.id)
+                                }
+                                icon={<PlaySquareOutlined />}
+                              />
                               {isWordRecording &&
                                 indexRecording === key &&
                                 indexWordRecording === item.id && (
                                   <Button
+                                    className="ml-2"
                                     onClick={() =>
                                       stopRecording('question', key)
                                     }
@@ -608,6 +658,7 @@ export default function Page() {
                                 indexRecording !== key ||
                                 indexWordRecording !== item.id) && (
                                 <Button
+                                  className="ml-2"
                                   onClick={() =>
                                     startRecording('question', key, item.id)
                                   }
@@ -617,7 +668,9 @@ export default function Page() {
                               <Button
                                 className="ml-2"
                                 icon={<SoundOutlined />}
-                                onClick={() => playSound('question', key, item.id)}
+                                onClick={() =>
+                                  playSound('question', key, item.id)
+                                }
                               />
                             </Form.Item>
                           </Space>
