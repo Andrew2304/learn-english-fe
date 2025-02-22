@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { MinusCircleOutlined, NodeIndexOutlined, PauseCircleOutlined, PlayCircleOutlined, PlaySquareOutlined, PlusCircleOutlined, PlusOutlined, SoundOutlined } from '@ant-design/icons'
+import { MinusCircleOutlined, NodeIndexOutlined, PauseCircleOutlined, PlayCircleOutlined, PlaySquareOutlined, PlusCircleOutlined, PlusOutlined, SoundOutlined, TranslationOutlined } from '@ant-design/icons'
 import { Button, Card, Col, Flex, Form, Input, notification, Row, Space, Tag, Timeline, Tooltip, Typography } from 'antd'
 import { useEffect, useRef, useState } from 'react'
 import { apiUrl } from '../../../helpers'
@@ -144,6 +144,15 @@ export default function Page() {
       return response?.data;
     } catch (err: any) {
       console.log('error getSoundSample');
+      return null;
+    }
+  };
+  const getIPA = async (text: string) => {
+    try {
+      const response = await axios.post(`${apiUrl}/lesson/ipa`, {text});
+      return response?.data;
+    } catch (err: any) {
+      console.log('error getIPA');
       return null;
     }
   };
@@ -386,14 +395,36 @@ export default function Page() {
       item = words[index];
     }
 
+    console.log("item", item);
     if (!item) return;
 
-    console.log('item', item)
-
-    const text = (type === "words") ? item?.description : `${item?.questionText}, ${item?.answerText}`;
+    const text = (type === "words") ? item?.description : `${item?.questionText}. ${item?.answerText}`;
     const sampleAudioName = await getSoundSample(text);
 
     onPlaySound(sampleAudioName);
+  }
+
+  const showIPA = async (type: string, index: number, wordId?: number) => {
+    let item: any = [];
+    if (type === "question") {
+      item = pronunciationLinks.find((item: any) => item.wordId === wordId && item.index === index)
+    } else {
+      item = words[index];
+    }
+
+    console.log("item", item);
+    if (!item) return;
+
+    const text = (type === "words") ? item?.description : `${item?.questionText}, ${item?.answerText}`;
+    const ipaText = await getIPA(text);
+
+    api['success']({
+      message: '',
+      description: ipaText,
+      duration: 0,
+    })
+
+    // onPlaySound(sampleAudioName);
   }
 
   const onValuesChange = () => {
@@ -467,7 +498,7 @@ export default function Page() {
                 }}
                 onValuesChange={onValuesChange}
               >
-                <Form.Item name="topic" style={{ width: 190 }}>
+                <Form.Item name="topic" style={{ width: 180 }}>
                   <Input placeholder="Topic" />
                 </Form.Item>
 
@@ -486,28 +517,28 @@ export default function Page() {
                           <Form.Item
                             {...restField}
                             name={[name, 'description']}
-                            style={{ width: 190 }}
+                            style={{ width: 180 }}
                           >
                             <Input placeholder="Word" />
                           </Form.Item>
                           <Form.Item
                             {...restField}
                             name={[name, 'type']}
-                            style={{ width: 190 }}
+                            style={{ width: 180 }}
                           >
                             <Input placeholder="Type" />
                           </Form.Item>
                           <Form.Item
                             {...restField}
                             name={[name, 'pronunciation']}
-                            style={{ width: 190 }}
+                            style={{ width: 180 }}
                           >
                             <Input placeholder="Pronunciation" />
                           </Form.Item>
                           <Form.Item
                             {...restField}
                             name={[name, 'translation']}
-                            style={{ width: 190 }}
+                            style={{ width: 180 }}
                           >
                             <Input placeholder="Translation" />
                           </Form.Item>
@@ -519,6 +550,11 @@ export default function Page() {
                             <Button
                               onClick={() => playSoundSample('words', key)}
                               icon={<PlaySquareOutlined />}
+                            />
+                            <Button
+                              className="ml-2"
+                              onClick={() => showIPA('words', key)}
+                              icon={<TranslationOutlined />}
                             />
 
                             {isRecording && indexRecording === key && (
@@ -620,14 +656,14 @@ export default function Page() {
                             <Form.Item
                               {...restField}
                               name={[name, 'question']}
-                              style={{ width: 335 }}
+                              style={{ width: 315 }}
                             >
                               <Input placeholder="Question" />
                             </Form.Item>
                             <Form.Item
                               {...restField}
                               name={[name, 'answer']}
-                              style={{ width: 335 }}
+                              style={{ width: 315 }}
                             >
                               <Input placeholder="Answer" />
                             </Form.Item>
@@ -641,6 +677,13 @@ export default function Page() {
                                   playSoundSample('question', key, item.id)
                                 }
                                 icon={<PlaySquareOutlined />}
+                              />
+                              <Button
+                                className="ml-2"
+                                onClick={() =>
+                                  showIPA('question', key, item.id)
+                                }
+                                icon={<TranslationOutlined />}
                               />
                               {isWordRecording &&
                                 indexRecording === key &&
